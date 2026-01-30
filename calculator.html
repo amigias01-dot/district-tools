@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>District Calculator</title>
+  <title>District Calculator (Debug Mode)</title>
   <style>
     body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; padding: 20px; text-align: center; background: transparent; }
     .container {
@@ -14,44 +14,18 @@
       margin: 0 auto;
       border: 1px solid #e1e4e8;
     }
-    h3 { margin-top: 0; color: #003366; }
-    p { color: #666; font-size: 14px; margin-bottom: 20px; }
-    
-    input {
-      width: 100%;
-      padding: 12px;
-      margin-bottom: 15px;
-      border: 2px solid #ddd;
-      border-radius: 8px;
-      box-sizing: border-box;
-      font-size: 16px;
-    }
-    button {
-      width: 100%;
-      padding: 12px;
-      background-color: #003366;
-      color: white;
-      border: none;
-      border-radius: 8px;
-      font-size: 16px;
-      font-weight: bold;
-      cursor: pointer;
-    }
+    input { width: 100%; padding: 12px; margin-bottom: 15px; border: 2px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
+    button { width: 100%; padding: 12px; background-color: #003366; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; }
     button:hover { background-color: #002244; }
-    
-    #result { margin-top: 20px; display: none; text-align: left; padding: 15px; border-radius: 8px; }
-    .success { background: #e6fffa; border: 1px solid #38b2ac; color: #004d40; }
-    .fail { background: #fff5f5; border: 1px solid #fc8181; color: #742a2a; }
-    .error { background: #fffbe6; border: 1px solid #ffe58f; color: #856404; }
-    a.donate-btn { display: inline-block; margin-top: 10px; font-weight: bold; text-decoration: none; }
+    #result { margin-top: 20px; display: none; text-align: left; padding: 15px; border-radius: 8px; word-wrap: break-word; }
   </style>
 </head>
 <body>
   <div class="container">
-    <h3>Am I in District 34?</h3>
-    <p>Enter your address below to verify.</p>
+    <h3 style="margin-top:0; color:#003366;">District Check (Debug)</h3>
+    <p>Enter address to test connection.</p>
     
-    <input type="text" id="address" placeholder="Enter your full address..." onkeydown="if(event.key==='Enter') check()">
+    <input type="text" id="address" placeholder="75-01 31st Ave, Queens, NY" onkeydown="if(event.key==='Enter') check()">
     <button onclick="check()">Check Address</button>
     
     <div id="result"></div>
@@ -61,29 +35,48 @@
     async function check() {
       const addr = document.getElementById('address').value;
       const resBox = document.getElementById('result');
-      // YOUR API KEY
+      
+      // --- PASTE YOUR API KEY HERE ---
       const API_KEY = 'AIzaSyAyduKVB1kDinuz3N43bUIm9CDiihkhlog'; 
       const TARGET = 'sldl:34';
 
-      if (!addr || addr.length < 5) { alert("Please enter a full address."); return; }
+      if (!addr) { alert("Enter an address"); return; }
 
       resBox.style.display = 'block';
-      resBox.innerHTML = 'Checking...';
-      resBox.className = '';
+      resBox.innerHTML = 'Connecting to Google...';
+      resBox.style.background = '#fff'; 
+      resBox.style.color = '#333';
 
       try {
         const url = `https://www.googleapis.com/civicinfo/v2/representatives?address=${encodeURIComponent(addr)}&includeOffices=true&levels=administrativeArea1&roles=legislatorLowerBody&key=${API_KEY}`;
+        
         const response = await fetch(url);
         const data = await response.json();
 
+        // --- ERROR CATCHER ---
         if (data.error) {
-          resBox.innerHTML = "<b>Error:</b> " + (data.error.message || "Could not verify.");
-          resBox.className = 'error';
+          console.error("Full Error:", data.error);
+          
+          let explanation = "";
+          if (data.error.code === 404) explanation = "<b>Reason:</b> Google cannot find this address in the voting database. Try adding the Zip Code.";
+          if (data.error.code === 403) explanation = "<b>Reason:</b> API Key is blocked. <br>1. Go to Google Cloud > Credentials.<br>2. Edit API Key.<br>3. Under 'Websites', ensure <code>https://amigias01-dot.github.io/*</code> is added exactly.";
+          if (data.error.code === 400) explanation = "<b>Reason:</b> Address format is invalid.";
+
+          resBox.innerHTML = `
+            <div style="color:red; font-weight:bold;">❌ API Error: ${data.error.message}</div>
+            <div style="font-size:12px; margin-top:10px; color:#555;">
+              Code: ${data.error.code}<br>
+              ${explanation}
+            </div>
+          `;
+          resBox.style.background = '#fff5f5';
+          resBox.style.border = '1px solid red';
           return;
         }
 
+        // --- SUCCESS CHECK ---
         let found = false;
-        let distName = "Unknown District";
+        let distName = "Unknown";
         
         if (data.divisions) {
           for (let id of Object.keys(data.divisions)) {
@@ -95,23 +88,16 @@
         }
 
         if (found) {
-          resBox.innerHTML = `
-            <strong>✅ Yes! You are in District 34.</strong><br>
-            <span style="font-size:13px">Andreas is running to represent you.</span><br>
-            <a href="https://secure.actblue.com/donate/andreas-migias-1" class="donate-btn" style="color:#003366;" target="_blank">Donate to the Campaign</a>
-          `;
-          resBox.className = 'success';
+          resBox.innerHTML = `<b style="color:green">✅ SUCCESS: You are in District 34!</b>`;
+          resBox.style.background = '#e6fffa';
         } else {
-          resBox.innerHTML = `
-            <strong>❌ You are in ${distName}.</strong><br>
-            <span style="font-size:13px">You are outside the boundaries.</span><br>
-            <a href="https://secure.actblue.com/donate/andreas-migias-1" class="donate-btn" style="color:#c53030;" target="_blank">Donate Anyway</a>
-          `;
-          resBox.className = 'fail';
+          resBox.innerHTML = `<b style="color:#c53030">❌ You are in ${distName}</b>`;
+          resBox.style.background = '#fff5f5';
         }
+
       } catch (e) {
-        resBox.innerHTML = "Network Error. Please try again.";
-        resBox.className = 'error';
+        resBox.innerHTML = "<b>Network Error:</b> " + e.message;
+        resBox.style.background = '#fffbe6';
       }
     }
   </script>
