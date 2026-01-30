@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>District Calculator (Debug Mode)</title>
+  <title>District Calculator</title>
   <style>
     body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; padding: 20px; text-align: center; background: transparent; }
     .container {
@@ -14,18 +14,44 @@
       margin: 0 auto;
       border: 1px solid #e1e4e8;
     }
-    input { width: 100%; padding: 12px; margin-bottom: 15px; border: 2px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
-    button { width: 100%; padding: 12px; background-color: #003366; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; }
+    h3 { margin-top: 0; color: #003366; }
+    p { color: #666; font-size: 14px; margin-bottom: 20px; }
+    
+    input {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 15px;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      box-sizing: border-box;
+      font-size: 16px;
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      background-color: #003366;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+    }
     button:hover { background-color: #002244; }
-    #result { margin-top: 20px; display: none; text-align: left; padding: 15px; border-radius: 8px; word-wrap: break-word; }
+    
+    #result { margin-top: 20px; display: none; text-align: left; padding: 15px; border-radius: 8px; }
+    .success { background: #e6fffa; border: 1px solid #38b2ac; color: #004d40; }
+    .fail { background: #fff5f5; border: 1px solid #fc8181; color: #742a2a; }
+    .error { background: #fffbe6; border: 1px solid #ffe58f; color: #856404; }
+    a.donate-btn { display: inline-block; margin-top: 10px; font-weight: bold; text-decoration: none; }
   </style>
 </head>
 <body>
   <div class="container">
-    <h3 style="margin-top:0; color:#003366;">District Check (Debug)</h3>
-    <p>Enter address to test connection.</p>
+    <h3>Am I in District 34?</h3>
+    <p>Enter your address below to verify.</p>
     
-    <input type="text" id="address" placeholder="75-01 31st Ave, Queens, NY" onkeydown="if(event.key==='Enter') check()">
+    <input type="text" id="addressInput" placeholder="Enter your full address..." onkeydown="if(event.key==='Enter') check()">
     <button onclick="check()">Check Address</button>
     
     <div id="result"></div>
@@ -33,71 +59,70 @@
 
   <script>
     async function check() {
-      const addr = document.getElementById('address').value;
+      const addr = document.getElementById('addressInput').value;
       const resBox = document.getElementById('result');
-      
-      // --- PASTE YOUR API KEY HERE ---
+      // YOUR API KEY
       const API_KEY = 'AIzaSyAyduKVB1kDinuz3N43bUIm9CDiihkhlog'; 
       const TARGET = 'sldl:34';
 
-      if (!addr) { alert("Enter an address"); return; }
+      if (!addr || addr.length < 5) { alert("Please enter a full address."); return; }
 
       resBox.style.display = 'block';
-      resBox.innerHTML = 'Connecting to Google...';
-      resBox.style.background = '#fff'; 
-      resBox.style.color = '#333';
+      resBox.innerHTML = 'Checking...';
+      resBox.className = '';
 
       try {
-        const url = `https://www.googleapis.com/civicinfo/v2/representatives?address=${encodeURIComponent(addr)}&includeOffices=true&levels=administrativeArea1&roles=legislatorLowerBody&key=${API_KEY}`;
+        // CHANGED: Using the direct 'civicinfo' subdomain + Removing filters to prevent 404s
+        const url = `https://civicinfo.googleapis.com/civicinfo/v2/representatives?address=${encodeURIComponent(addr)}&includeOffices=true&key=${API_KEY}`;
         
         const response = await fetch(url);
         const data = await response.json();
 
-        // --- ERROR CATCHER ---
         if (data.error) {
-          console.error("Full Error:", data.error);
-          
-          let explanation = "";
-          if (data.error.code === 404) explanation = "<b>Reason:</b> Google cannot find this address in the voting database. Try adding the Zip Code.";
-          if (data.error.code === 403) explanation = "<b>Reason:</b> API Key is blocked. <br>1. Go to Google Cloud > Credentials.<br>2. Edit API Key.<br>3. Under 'Websites', ensure <code>https://amigias01-dot.github.io/*</code> is added exactly.";
-          if (data.error.code === 400) explanation = "<b>Reason:</b> Address format is invalid.";
-
-          resBox.innerHTML = `
-            <div style="color:red; font-weight:bold;">❌ API Error: ${data.error.message}</div>
-            <div style="font-size:12px; margin-top:10px; color:#555;">
-              Code: ${data.error.code}<br>
-              ${explanation}
-            </div>
-          `;
-          resBox.style.background = '#fff5f5';
-          resBox.style.border = '1px solid red';
+          resBox.innerHTML = `<b>Error:</b> ${data.error.message}`;
+          resBox.className = 'error';
           return;
         }
 
-        // --- SUCCESS CHECK ---
         let found = false;
-        let distName = "Unknown";
+        let distName = "Unknown District";
         
+        // Manual Filtering (More Robust)
         if (data.divisions) {
           for (let id of Object.keys(data.divisions)) {
+            // Look for 'sldl' (State Legislative District Lower)
             if (id.includes('sldl:')) {
                 distName = data.divisions[id].name;
+                // Check specifically for District 34
                 if (id.includes(TARGET)) found = true;
             }
           }
         }
 
         if (found) {
-          resBox.innerHTML = `<b style="color:green">✅ SUCCESS: You are in District 34!</b>`;
-          resBox.style.background = '#e6fffa';
+          resBox.innerHTML = `
+            <strong>✅ Yes! You are in District 34.</strong><br>
+            <span style="font-size:13px">Andreas is running to represent you.</span><br>
+            <a href="https://secure.actblue.com/donate/andreas-migias-1" class="donate-btn" style="color:#003366;" target="_blank">Donate to the Campaign</a>
+          `;
+          resBox.className = 'success';
         } else {
-          resBox.innerHTML = `<b style="color:#c53030">❌ You are in ${distName}</b>`;
-          resBox.style.background = '#fff5f5';
+          // Check if we found ANY district at all
+          if (distName === "Unknown District") {
+             resBox.innerHTML = `<b>Address not found.</b><br><span style="font-size:13px">Please try adding your City and Zip Code.</span>`;
+             resBox.className = 'error';
+          } else {
+             resBox.innerHTML = `
+               <strong>❌ You are in ${distName}.</strong><br>
+               <span style="font-size:13px">You are outside the boundaries.</span><br>
+               <a href="https://secure.actblue.com/donate/andreas-migias-1" class="donate-btn" style="color:#c53030;" target="_blank">Donate Anyway</a>
+             `;
+             resBox.className = 'fail';
+          }
         }
-
       } catch (e) {
-        resBox.innerHTML = "<b>Network Error:</b> " + e.message;
-        resBox.style.background = '#fffbe6';
+        resBox.innerHTML = "Network Error. Please try again.";
+        resBox.className = 'error';
       }
     }
   </script>
