@@ -4,32 +4,45 @@
   <meta charset="utf-8">
   <title>District 34 Verifier</title>
   <style>
-    body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; padding: 20px; text-align: center; }
+    /* 1. KILL THE WHITE SPACE */
+    body, html { 
+      margin: 0; 
+      padding: 0; 
+      width: 100%; 
+      height: 100%; 
+      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
+      overflow: hidden; /* Stops scrollbars from appearing */
+    }
     
     .box {
       background: white; 
-      padding: 30px; 
-      border-radius: 12px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.1); 
+      padding: 25px; /* Slightly tighter padding */
+      /* No margin-top here! */
+      width: 100%; 
       max-width: 400px; 
-      margin: 0 auto;
       border: 1px solid #e0e0e0;
-      text-align: left; /* Aligns text inside box for cleaner look */
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08); 
+      box-sizing: border-box; /* Crucial for sizing */
+      text-align: left;
+      
+      /* Center horizontally, but stick to top */
+      margin: 0 auto; 
     }
 
     h3 { margin-top: 0; color: #003366; text-align: center; margin-bottom: 5px; }
-    p { color: #666; text-align: center; font-size: 14px; margin-bottom: 25px; }
+    p { color: #666; text-align: center; font-size: 14px; margin-bottom: 20px; }
 
-    /* UNIFIED STYLING FOR SYMMETRY */
+    /* INPUTS */
     .input-group { width: 100%; box-sizing: border-box; }
     
     input, button {
       width: 100%;
-      padding: 14px;
+      padding: 12px;
       border-radius: 6px;
-      font-size: 16px;
-      box-sizing: border-box; /* Ensures padding doesn't expand width */
-      margin-bottom: 12px;
+      font-size: 15px;
+      box-sizing: border-box;
+      margin-bottom: 10px;
       outline: none;
     }
 
@@ -48,13 +61,11 @@
     }
     button:hover { background: #002244; }
 
-    /* RESULTS BOX */
-    #msg { margin-top: 20px; padding: 15px; border-radius: 6px; display: none; text-align: center; line-height: 1.5; }
+    /* RESULTS */
+    #msg { margin-top: 15px; padding: 12px; border-radius: 6px; display: none; text-align: center; line-height: 1.4; font-size: 14px; }
     .ok { background: #e6fffa; color: #004d40; border: 1px solid #b2f5ea; }
     .err { background: #fff5f5; color: #c53030; border: 1px solid #feb2b2; }
-    
-    /* Small verified address text */
-    .verified-addr { font-size: 12px; color: #555; margin-bottom: 5px; font-weight: bold; text-transform: uppercase; }
+    .verified-addr { font-size: 11px; color: #555; margin-bottom: 4px; font-weight: bold; text-transform: uppercase; display:block; }
   </style>
 
   <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAyduKVB1kDinuz3N43bUIm9CDiihkhlog&libraries=places,geometry&v=weekly"></script>
@@ -74,34 +85,35 @@
 </div>
 
 <script>
+  /* --- PASTE YOUR JS LOGIC + GEOJSON HERE --- */
+  /* (Keep the exact same script logic we just fixed in the previous turn) */
+  
+  /* ... [Script Block] ... */
+  
+  // RE-PASTE THE SCRIPT BLOCK FROM THE PREVIOUS ANSWER BELOW
+  // I will not repeat the whole script to save space, but DO NOT LOSE IT.
+  // Ensure you paste the script that includes:
+  // 1. initTool()
+  // 2. loadDistrictData() with your GeoJSON
+  // 3. manualCheck()
+  // 4. runPolygonCheck()
+  // 5. showResult()
+
+  /* TEMPORARY SCRIPT BLOCK FOR COPY-PASTING IF YOU NEED IT AGAIN: */
   let districtPolygon = null;
   let autocomplete;
 
-  // 1. Initialize Autocomplete & Map Data
   function initTool() {
-    // Setup Autocomplete
     const input = document.getElementById("addr");
-    const options = {
-      componentRestrictions: { country: "us" }, // Restrict to USA
-      fields: ["formatted_address", "geometry"], // Only get what we need
-      types: ["address"], // Only look for real addresses
-    };
-    
+    const options = { componentRestrictions: { country: "us" }, fields: ["formatted_address", "geometry"], types: ["address"] };
     autocomplete = new google.maps.places.Autocomplete(input, options);
-    
-    // When user selects a prediction from dropdown
     autocomplete.addListener("place_changed", function() {
       const place = autocomplete.getPlace();
-      if (place.geometry) {
-        runPolygonCheck(place.geometry.location, place.formatted_address);
-      }
+      if (place.geometry) runPolygonCheck(place.geometry.location, place.formatted_address);
     });
-
-    // Load District Shape
     loadDistrictData();
   }
 
-  // 2. Define District Shape (GeoJSON)
   function loadDistrictData() {
     // --- PASTE GEOJSON HERE ---
     const geoJsonData = {
@@ -7018,50 +7030,32 @@
   ]
 } ; 
     // -------------------------
-
     if (!geoJsonData || !geoJsonData.features) return;
-    const coords = geoJsonData.features[0].geometry.coordinates[0].map(pt => {
-      return { lat: pt[1], lng: pt[0] };
-    });
+    const coords = geoJsonData.features[0].geometry.coordinates[0].map(pt => { return { lat: pt[1], lng: pt[0] }; });
     districtPolygon = new google.maps.Polygon({ paths: coords });
   }
 
-  // 3. Fallback: If they ignore dropdown and click button
   function manualCheck() {
     const address = document.getElementById('addr').value;
     if (!address || address.length < 5) { alert("Please enter a full address"); return; }
-    
     const geocoder = new google.maps.Geocoder();
     geocoder.geocode({ 'address': address }, function(results, status) {
-      if (status === 'OK') {
-        runPolygonCheck(results[0].geometry.location, results[0].formatted_address);
-      } else {
-        showResult(false, "Address not found. Please select from the dropdown.");
-      }
+      if (status === 'OK') runPolygonCheck(results[0].geometry.location, results[0].formatted_address);
+      else showResult(false, "Address not found. Please select from the dropdown.");
     });
   }
 
-  // 4. The Logic: Is Dot inside Shape?
   function runPolygonCheck(location, formattedAddress) {
     if (!districtPolygon) loadDistrictData();
-    
     const isInside = google.maps.geometry.poly.containsLocation(location, districtPolygon);
-    
-    if (isInside) {
-      showResult(true, formattedAddress);
-    } else {
-      showResult(false, formattedAddress);
-    }
+    if (isInside) showResult(true, formattedAddress);
+    else showResult(false, formattedAddress);
   }
 
-  // 5. Display Logic
   function showResult(success, addressText) {
     const msg = document.getElementById('msg');
     msg.style.display = 'block';
-    
-    // Show the "Verified Address" so user knows we heard them right
     const addrDisplay = `<div class="verified-addr">Verified: ${addressText}</div>`;
-
     if (success) {
       msg.className = 'ok';
       msg.innerHTML = addrDisplay + '<b>✅ YES! You are in District 34.</b><br><br>Andreas is running to represent you.<br><a href="https://secure.actblue.com/donate/andreas-migias-1" target="_blank" style="display:inline-block; margin-top:10px; font-weight:bold; color:#004d40;">Donate to Campaign</a>';
@@ -7070,8 +7064,6 @@
       msg.innerHTML = addrDisplay + '<b>❌ You are outside District 34.</b><br><small>Your home is outside the district lines.</small><br><a href="https://secure.actblue.com/donate/andreas-migias-1" target="_blank" style="display:inline-block; margin-top:10px; color:#c53030; font-weight:bold;">Donate Anyway</a>';
     }
   }
-
-  // Start the tool when page loads
   window.onload = initTool;
 </script>
 
