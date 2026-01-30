@@ -2,129 +2,97 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>District Calculator</title>
+  <title>District Check</title>
   <style>
-    body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; padding: 20px; text-align: center; background: transparent; }
-    .container {
-      background: white;
-      padding: 30px;
-      border-radius: 12px;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-      max-width: 400px;
-      margin: 0 auto;
-      border: 1px solid #e1e4e8;
+    body { font-family: sans-serif; padding: 20px; text-align: center; }
+    .box {
+      background: white; padding: 30px; border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 400px; margin: 0 auto;
+      border: 1px solid #ccc;
     }
-    h3 { margin-top: 0; color: #003366; }
-    p { color: #666; font-size: 14px; margin-bottom: 20px; }
-    
-    input {
-      width: 100%;
-      padding: 12px;
-      margin-bottom: 15px;
-      border: 2px solid #ddd;
-      border-radius: 8px;
-      box-sizing: border-box;
-      font-size: 16px;
-    }
-    button {
-      width: 100%;
-      padding: 12px;
-      background-color: #003366;
-      color: white;
-      border: none;
-      border-radius: 8px;
-      font-size: 16px;
-      font-weight: bold;
-      cursor: pointer;
-    }
-    button:hover { background-color: #002244; }
-    
-    #result { margin-top: 20px; display: none; text-align: left; padding: 15px; border-radius: 8px; }
-    .success { background: #e6fffa; border: 1px solid #38b2ac; color: #004d40; }
-    .fail { background: #fff5f5; border: 1px solid #fc8181; color: #742a2a; }
-    .error { background: #fffbe6; border: 1px solid #ffe58f; color: #856404; }
-    a.donate-btn { display: inline-block; margin-top: 10px; font-weight: bold; text-decoration: none; }
+    input { width: 100%; padding: 12px; margin-bottom: 10px; box-sizing: border-box; }
+    button { width: 100%; padding: 12px; background: #003366; color: white; border: none; font-weight: bold; cursor: pointer; }
+    button:hover { background: #002244; }
+    #msg { margin-top: 20px; padding: 15px; border-radius: 5px; display: none; text-align: left; }
+    .err { background: #fff0f0; color: #d8000c; border: 1px solid #d8000c; }
+    .ok { background: #eaffea; color: #005f00; border: 1px solid #005f00; }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h3>Am I in District 34?</h3>
-    <p>Enter your address below to verify.</p>
+
+<div class="box">
+  <h3 style="margin-top:0; color:#003366;">Am I in District 34?</h3>
+  <input type="text" id="addr" placeholder="Enter your address..." onkeydown="if(event.key==='Enter') runCheck()">
+  <button onclick="runCheck()">Verify</button>
+  <div id="msg"></div>
+</div>
+
+<script>
+  function runCheck() {
+    var addr = document.getElementById('addr').value;
+    var msg = document.getElementById('msg');
+    // YOUR API KEY
+    var KEY = 'AIzaSyAyduKVB1kDinuz3N43bUIm9CDiihkhlog';
     
-    <input type="text" id="addressInput" placeholder="Enter your full address..." onkeydown="if(event.key==='Enter') check()">
-    <button onclick="check()">Check Address</button>
-    
-    <div id="result"></div>
-  </div>
+    if(!addr || addr.length < 5) { alert('Enter full address'); return; }
 
-  <script>
-    async function check() {
-      const addr = document.getElementById('addressInput').value;
-      const resBox = document.getElementById('result');
-      // YOUR API KEY
-      const API_KEY = 'AIzaSyAyduKVB1kDinuz3N43bUIm9CDiihkhlog'; 
-      const TARGET = 'sldl:34';
+    msg.style.display = 'block';
+    msg.innerHTML = 'Searching database...';
+    msg.className = '';
 
-      if (!addr || addr.length < 5) { alert("Please enter a full address."); return; }
+    // URL: Standard Endpoint + NO FILTERS (To prevent 404s)
+    var url = 'https://www.googleapis.com/civicinfo/v2/representatives?address=' + encodeURIComponent(addr) + '&includeOffices=true&key=' + KEY;
 
-      resBox.style.display = 'block';
-      resBox.innerHTML = 'Checking...';
-      resBox.className = '';
-
-      try {
-        // CHANGED: Using the direct 'civicinfo' subdomain + Removing filters to prevent 404s
-        const url = `https://civicinfo.googleapis.com/civicinfo/v2/representatives?address=${encodeURIComponent(addr)}&includeOffices=true&key=${API_KEY}`;
+    fetch(url)
+      .then(function(response) { return response.json(); })
+      .then(function(data) {
         
-        const response = await fetch(url);
-        const data = await response.json();
-
+        // 1. CATCH API ERRORS
         if (data.error) {
-          resBox.innerHTML = `<b>Error:</b> ${data.error.message}`;
-          resBox.className = 'error';
+          msg.className = 'err';
+          msg.innerHTML = '<b>API Error:</b> ' + data.error.message + '<br><small>Code: ' + data.error.code + '</small>';
           return;
         }
 
-        let found = false;
-        let distName = "Unknown District";
-        
-        // Manual Filtering (More Robust)
+        // 2. SEARCH FOR DISTRICT 34
+        var found = false;
+        var myDist = 'Unknown';
+
         if (data.divisions) {
-          for (let id of Object.keys(data.divisions)) {
-            // Look for 'sldl' (State Legislative District Lower)
-            if (id.includes('sldl:')) {
-                distName = data.divisions[id].name;
-                // Check specifically for District 34
-                if (id.includes(TARGET)) found = true;
+          // Loop through all divisions found for this address
+          for (var id in data.divisions) {
+            // "sldl" = State Legislative District Lower (Assembly)
+            if (id.indexOf('sldl:') !== -1) {
+              myDist = data.divisions[id].name;
+              if (id.indexOf('sldl:34') !== -1) {
+                found = true;
+              }
             }
           }
         }
 
+        // 3. SHOW RESULT
         if (found) {
-          resBox.innerHTML = `
-            <strong>✅ Yes! You are in District 34.</strong><br>
-            <span style="font-size:13px">Andreas is running to represent you.</span><br>
-            <a href="https://secure.actblue.com/donate/andreas-migias-1" class="donate-btn" style="color:#003366;" target="_blank">Donate to the Campaign</a>
-          `;
-          resBox.className = 'success';
+          msg.className = 'ok';
+          msg.innerHTML = '<b>✅ YES! You are in District 34.</b><br><br><a href="https://secure.actblue.com/donate/andreas-migias-1" target="_blank" style="font-weight:bold;">Donate Here</a>';
         } else {
-          // Check if we found ANY district at all
-          if (distName === "Unknown District") {
-             resBox.innerHTML = `<b>Address not found.</b><br><span style="font-size:13px">Please try adding your City and Zip Code.</span>`;
-             resBox.className = 'error';
+          // If we found a different district, tell them which one
+          if (myDist !== 'Unknown') {
+            msg.className = 'err';
+            msg.innerHTML = '<b>❌ You are in ' + myDist + '.</b><br><small>You are outside District 34.</small><br><br><a href="https://secure.actblue.com/donate/andreas-migias-1" target="_blank">Donate Anyway</a>';
           } else {
-             resBox.innerHTML = `
-               <strong>❌ You are in ${distName}.</strong><br>
-               <span style="font-size:13px">You are outside the boundaries.</span><br>
-               <a href="https://secure.actblue.com/donate/andreas-migias-1" class="donate-btn" style="color:#c53030;" target="_blank">Donate Anyway</a>
-             `;
-             resBox.className = 'fail';
+            // If we found NO district (rare)
+            msg.className = 'err';
+            msg.innerHTML = '<b>❓ Address found, but no Assembly District data.</b><br>Try adding your Zip Code.';
           }
         }
-      } catch (e) {
-        resBox.innerHTML = "Network Error. Please try again.";
-        resBox.className = 'error';
-      }
-    }
-  </script>
+      })
+      .catch(function(err) {
+        msg.className = 'err';
+        msg.innerHTML = '<b>Network Error:</b> ' + err.message;
+      });
+  }
+</script>
+
 </body>
 </html>
