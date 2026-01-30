@@ -2,97 +2,90 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>District Check</title>
+  <title>District 34 Verifier</title>
   <style>
-    body { font-family: sans-serif; padding: 20px; text-align: center; }
+    body { font-family: 'Segoe UI', sans-serif; padding: 20px; text-align: center; }
     .box {
       background: white; padding: 30px; border-radius: 12px;
       box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 400px; margin: 0 auto;
       border: 1px solid #ccc;
     }
-    input { width: 100%; padding: 12px; margin-bottom: 10px; box-sizing: border-box; }
-    button { width: 100%; padding: 12px; background: #003366; color: white; border: none; font-weight: bold; cursor: pointer; }
+    input { width: 100%; padding: 12px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 4px; }
+    button { width: 100%; padding: 12px; background: #003366; color: white; border: none; font-weight: bold; cursor: pointer; border-radius: 4px; }
     button:hover { background: #002244; }
     #msg { margin-top: 20px; padding: 15px; border-radius: 5px; display: none; text-align: left; }
-    .err { background: #fff0f0; color: #d8000c; border: 1px solid #d8000c; }
-    .ok { background: #eaffea; color: #005f00; border: 1px solid #005f00; }
+    .ok { background: #eaffea; color: #004d40; border: 1px solid #004d40; }
+    .err { background: #fff0f0; color: #c00; border: 1px solid #c00; }
   </style>
+
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAyduKVB1kDinuz3N43bUIm9CDiihkhlog&libraries=geometry&v=weekly"></script>
 </head>
 <body>
 
 <div class="box">
   <h3 style="margin-top:0; color:#003366;">Am I in District 34?</h3>
-  <input type="text" id="addr" placeholder="Enter your full address..." onkeydown="if(event.key==='Enter') runCheck()">
-  <button onclick="runCheck()">Verify</button>
+  <input type="text" id="addr" placeholder="Enter your full address..." onkeydown="if(event.key==='Enter') checkAddress()">
+  <button onclick="checkAddress()">Verify Address</button>
   <div id="msg"></div>
 </div>
 
 <script>
-  function runCheck() {
-    var addr = document.getElementById('addr').value;
-    var msg = document.getElementById('msg');
-    // YOUR API KEY
-    var KEY = 'AIzaSyAyduKVB1kDinuz3N43bUIm9CDiihkhlog';
+  let districtPolygon = null;
+
+  // 1. Define the District Shape (Your GeoJSON)
+  function loadDistrictData() {
+    // --- PASTE YOUR GEOJSON HERE ---
+    const geoJsonData = PASTE_THE_HUGE_TEXT_FROM_GEOJSON_IO_HERE ;
+    // -------------------------------
+
+    if (!geoJsonData || !geoJsonData.features) return;
+
+    // Convert GeoJSON to Google Maps Polygon
+    const coords = geoJsonData.features[0].geometry.coordinates[0].map(pt => {
+      return { lat: pt[1], lng: pt[0] };
+    });
+
+    districtPolygon = new google.maps.Polygon({ paths: coords });
+  }
+
+  function checkAddress() {
+    const address = document.getElementById('addr').value;
+    const msg = document.getElementById('msg');
     
-    if(!addr || addr.length < 5) { alert('Enter full address'); return; }
+    if (!address || address.length < 5) { alert("Please enter a full address"); return; }
+    if (!districtPolygon) loadDistrictData(); // Load shape if not ready
 
     msg.style.display = 'block';
-    msg.innerHTML = 'Checking...';
+    msg.innerHTML = 'Checking map boundaries...';
     msg.className = '';
 
-    // CORRECT ENDPOINT: civicinfo.googleapis.com
-    var url = 'https://civicinfo.googleapis.com/civicinfo/v2/representatives?address=' + encodeURIComponent(addr) + '&includeOffices=true&levels=administrativeArea1&roles=legislatorLowerBody&key=' + KEY;
-
-    console.log("Requesting URL:", url); // Debug in Console
-
-    fetch(url)
-      .then(function(response) { return response.json(); })
-      .then(function(data) {
+    // 2. Geocode the Address (Find the dot)
+    const geocoder = new google.maps.Geocoder();
+    geocoder.geocode({ 'address': address }, function(results, status) {
+      
+      if (status === 'OK') {
+        const location = results[0].geometry.location; // The Dot
         
-        // 1. CATCH API ERRORS
-        if (data.error) {
-          console.error("API Error Payload:", data);
-          msg.className = 'err';
-          msg.innerHTML = '<b>Error:</b> ' + data.error.message + '<br><small>Code: ' + data.error.code + '</small>';
-          return;
-        }
+        // 3. The Math Check: Is Dot inside Shape?
+        const isInside = google.maps.geometry.poly.containsLocation(location, districtPolygon);
 
-        // 2. SEARCH FOR DISTRICT 34
-        var found = false;
-        var myDist = 'Unknown';
-
-        if (data.divisions) {
-          for (var id in data.divisions) {
-            // "sldl" = State Legislative District Lower (Assembly)
-            if (id.indexOf('sldl:') !== -1) {
-              myDist = data.divisions[id].name;
-              if (id.indexOf('sldl:34') !== -1) {
-                found = true;
-              }
-            }
-          }
-        }
-
-        // 3. SHOW RESULT
-        if (found) {
+        if (isInside) {
           msg.className = 'ok';
-          msg.innerHTML = '<b>✅ YES! You are in District 34.</b><br><br><a href="https://secure.actblue.com/donate/andreas-migias-1" target="_blank" style="font-weight:bold;">Donate Here</a>';
+          msg.innerHTML = '<b>✅ YES! You are in District 34.</b><br><br>Andreas is fighting for you.<br><a href="https://secure.actblue.com/donate/andreas-migias-1" target="_blank" style="font-weight:bold; color:#004d40;">Donate Here</a>';
         } else {
-          if (myDist !== 'Unknown') {
-            msg.className = 'err';
-            msg.innerHTML = '<b>❌ You are in ' + myDist + '.</b><br><small>You are outside District 34.</small><br><br><a href="https://secure.actblue.com/donate/andreas-migias-1" target="_blank">Donate Anyway</a>';
-          } else {
-            msg.className = 'err';
-            msg.innerHTML = '<b>❌ Address found, but no Assembly District data.</b><br>Try adding your Zip Code.';
-          }
+          msg.className = 'err';
+          msg.innerHTML = '<b>❌ You are outside District 34.</b><br><small>Your home is outside the district lines.</small><br><br><a href="https://secure.actblue.com/donate/andreas-migias-1" target="_blank" style="color:#c00;">Donate Anyway</a>';
         }
-      })
-      .catch(function(err) {
-        console.error("Network Error:", err);
+
+      } else {
         msg.className = 'err';
-        msg.innerHTML = '<b>Network Error:</b> ' + err.message;
-      });
+        msg.innerHTML = '<b>Error:</b> Could not find that address. Try adding City and Zip.';
+      }
+    });
   }
+
+  // Load data immediately
+  loadDistrictData();
 </script>
 
 </body>
