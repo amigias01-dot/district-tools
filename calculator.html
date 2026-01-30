@@ -22,7 +22,7 @@
 
 <div class="box">
   <h3 style="margin-top:0; color:#003366;">Am I in District 34?</h3>
-  <input type="text" id="addr" placeholder="Enter your address..." onkeydown="if(event.key==='Enter') runCheck()">
+  <input type="text" id="addr" placeholder="Enter your full address..." onkeydown="if(event.key==='Enter') runCheck()">
   <button onclick="runCheck()">Verify</button>
   <div id="msg"></div>
 </div>
@@ -37,11 +37,13 @@
     if(!addr || addr.length < 5) { alert('Enter full address'); return; }
 
     msg.style.display = 'block';
-    msg.innerHTML = 'Searching database...';
+    msg.innerHTML = 'Checking...';
     msg.className = '';
 
-    // URL: Standard Endpoint + NO FILTERS (To prevent 404s)
-    var url = 'https://www.googleapis.com/civicinfo/v2/representatives?address=' + encodeURIComponent(addr) + '&includeOffices=true&key=' + KEY;
+    // CORRECT ENDPOINT: civicinfo.googleapis.com
+    var url = 'https://civicinfo.googleapis.com/civicinfo/v2/representatives?address=' + encodeURIComponent(addr) + '&includeOffices=true&levels=administrativeArea1&roles=legislatorLowerBody&key=' + KEY;
+
+    console.log("Requesting URL:", url); // Debug in Console
 
     fetch(url)
       .then(function(response) { return response.json(); })
@@ -49,8 +51,9 @@
         
         // 1. CATCH API ERRORS
         if (data.error) {
+          console.error("API Error Payload:", data);
           msg.className = 'err';
-          msg.innerHTML = '<b>API Error:</b> ' + data.error.message + '<br><small>Code: ' + data.error.code + '</small>';
+          msg.innerHTML = '<b>Error:</b> ' + data.error.message + '<br><small>Code: ' + data.error.code + '</small>';
           return;
         }
 
@@ -59,7 +62,6 @@
         var myDist = 'Unknown';
 
         if (data.divisions) {
-          // Loop through all divisions found for this address
           for (var id in data.divisions) {
             // "sldl" = State Legislative District Lower (Assembly)
             if (id.indexOf('sldl:') !== -1) {
@@ -76,18 +78,17 @@
           msg.className = 'ok';
           msg.innerHTML = '<b>✅ YES! You are in District 34.</b><br><br><a href="https://secure.actblue.com/donate/andreas-migias-1" target="_blank" style="font-weight:bold;">Donate Here</a>';
         } else {
-          // If we found a different district, tell them which one
           if (myDist !== 'Unknown') {
             msg.className = 'err';
             msg.innerHTML = '<b>❌ You are in ' + myDist + '.</b><br><small>You are outside District 34.</small><br><br><a href="https://secure.actblue.com/donate/andreas-migias-1" target="_blank">Donate Anyway</a>';
           } else {
-            // If we found NO district (rare)
             msg.className = 'err';
-            msg.innerHTML = '<b>❓ Address found, but no Assembly District data.</b><br>Try adding your Zip Code.';
+            msg.innerHTML = '<b>❌ Address found, but no Assembly District data.</b><br>Try adding your Zip Code.';
           }
         }
       })
       .catch(function(err) {
+        console.error("Network Error:", err);
         msg.className = 'err';
         msg.innerHTML = '<b>Network Error:</b> ' + err.message;
       });
