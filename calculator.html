@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>District Calculator</title>
+  <style>
+    body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; padding: 20px; text-align: center; background: transparent; }
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      max-width: 400px;
+      margin: 0 auto;
+      border: 1px solid #e1e4e8;
+    }
+    h3 { margin-top: 0; color: #003366; }
+    p { color: #666; font-size: 14px; margin-bottom: 20px; }
+    
+    input {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 15px;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      box-sizing: border-box;
+      font-size: 16px;
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      background-color: #003366;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    button:hover { background-color: #002244; }
+    
+    #result { margin-top: 20px; display: none; text-align: left; padding: 15px; border-radius: 8px; }
+    .success { background: #e6fffa; border: 1px solid #38b2ac; color: #004d40; }
+    .fail { background: #fff5f5; border: 1px solid #fc8181; color: #742a2a; }
+    .error { background: #fffbe6; border: 1px solid #ffe58f; color: #856404; }
+    a.donate-btn { display: inline-block; margin-top: 10px; font-weight: bold; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h3>Am I in District 34?</h3>
+    <p>Enter your address to verify your voting district.</p>
+    
+    <input type="text" id="address" placeholder="e.g. 75-01 31st Ave, Queens" onkeydown="if(event.key==='Enter') check()">
+    <button onclick="check()">Check Address</button>
+    
+    <div id="result"></div>
+  </div>
+
+  <script>
+    async function check() {
+      const addr = document.getElementById('address').value;
+      const resBox = document.getElementById('result');
+      const API_KEY = 'AIzaSyAyduKVB1kDinuz3N43bUIm9CDiihkhlog'; 
+      const TARGET = 'sldl:34';
+
+      if (!addr || addr.length < 5) { alert("Please enter a full address."); return; }
+
+      resBox.style.display = 'block';
+      resBox.innerHTML = 'Checking...';
+      resBox.className = '';
+
+      try {
+        const url = `https://www.googleapis.com/civicinfo/v2/representatives?address=${encodeURIComponent(addr)}&includeOffices=true&levels=administrativeArea1&roles=legislatorLowerBody&key=${API_KEY}`;
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (data.error) {
+          resBox.innerHTML = "<b>Error:</b> " + (data.error.message || "Could not verify.");
+          resBox.className = 'error';
+          return;
+        }
+
+        let found = false;
+        let distName = "Unknown District";
+        
+        if (data.divisions) {
+          for (let id of Object.keys(data.divisions)) {
+            if (id.includes('sldl:')) {
+                distName = data.divisions[id].name;
+                if (id.includes(TARGET)) found = true;
+            }
+          }
+        }
+
+        if (found) {
+          resBox.innerHTML = `
+            <strong>✅ Yes! You are in District 34.</strong><br>
+            <span style="font-size:13px">Andreas is running to represent you.</span><br>
+            <a href="https://secure.actblue.com/donate/andreas-migias-1" class="donate-btn" style="color:#003366;" target="_blank">Donate to the Campaign</a>
+          `;
+          resBox.className = 'success';
+        } else {
+          resBox.innerHTML = `
+            <strong>❌ You are in ${distName}.</strong><br>
+            <span style="font-size:13px">You are outside the boundaries.</span><br>
+            <a href="https://secure.actblue.com/donate/andreas-migias-1" class="donate-btn" style="color:#c53030;" target="_blank">Donate Anyway</a>
+          `;
+          resBox.className = 'fail';
+        }
+      } catch (e) {
+        resBox.innerHTML = "Network Error. Please try again.";
+        resBox.className = 'error';
+      }
+    }
+  </script>
+</body>
+</html>
