@@ -49,9 +49,9 @@
 <body>
   <div class="container">
     <h3>Am I in District 34?</h3>
-    <p>Enter your address to verify your voting district.</p>
+    <p>Enter your address below to verify.</p>
     
-    <input type="text" id="address" placeholder="e.g. 75-01 31st Ave, Queens" onkeydown="if(event.key==='Enter') check()">
+    <input type="text" id="address" placeholder="Enter your full address..." onkeydown="if(event.key==='Enter') check()">
     <button onclick="check()">Check Address</button>
     
     <div id="result"></div>
@@ -61,6 +61,7 @@
     async function check() {
       const addr = document.getElementById('address').value;
       const resBox = document.getElementById('result');
+      // YOUR API KEY
       const API_KEY = 'AIzaSyAyduKVB1kDinuz3N43bUIm9CDiihkhlog'; 
       const TARGET = 'sldl:34';
 
